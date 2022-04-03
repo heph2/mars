@@ -3,13 +3,14 @@ package main
 import (
 	"errors"
 	"fmt"
-	"io"
 	"log"
 	"net/http"
 	"os"
 
-	"github.com/gofrs/flock"
+	"git.mrkeebs.eu/debris/handlers"
 )
+
+var filepath string
 
 func serveHttp(address string) error {
 	router := http.NewServeMux()
@@ -27,55 +28,39 @@ func requestHandler(res http.ResponseWriter, req *http.Request) {
 		return
 	}
 
+	fs := handlers.Filesystem{
+		Filepath: filepath + req.URL.Path,
+	}
+
 	switch req.Method {
 	case "GET":
-		if err := getStateFile(res); err != nil {
-			fmt.Fprintf(os.Stderr, "%s\n", err)
-			return
-		}
+		fs.GetStateFile(res)
+		return
 	case "POST":
-		if err := updateStateFile(res); err != nil {
-			fmt.Fprintf(os.Stderr, "%s\n", err)
-			return
-		}
+		fs.UpdateStateFile(req, res)
+		return
 	case "DELETE":
-		if err := deleteStateFile(res); err != nil {
-			fmt.Fprintf(os.Stderr, "%s\n", err)
-			return
-		}
+		fs.DeleteStateFile(res)
+		return
 	default:
 		fmt.Printf("Method not supported\n")
 	}
 }
 
-func getStateFile(res http.ResponseWriter) error {
-	fileLock := flock.New("/tmp/terraform-state")
-	locked, err := fileLock.TryLock()
-
+// This init function check if the directory that stores states
+// exists. If not create it.
+func init() {
+	home, err := os.UserHomeDir()
 	if err != nil {
-		log.Println("Error while locking", err)
+		log.Println("Error while get home dir", err)
 	}
-
-	if locked {
-		fh, err := os.Open(fileLock.Path())
+	filepath = home + "/.debris"
+	if _, err := os.Stat(filepath); errors.Is(err, os.ErrNotExist) {
+		err := os.Mkdir(filepath, 0755)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "%s\n", err)
-			return errors.New("Cannot open statefile")
+			log.Println("Error creating dir", err)
 		}
-		defer fh.Close()
-		res.WriteHeader(200)
-
-		io.Copy(res, fh)
-		fileLock.Unlock()
 	}
-	return nil
-}
-
-func updateStateFile(res http.ResponseWriter) error {
-	if err := os.Mkdir("/var/lib/debris", 0755); err != nil {
-		log.Fatal(err)
-	}
-	return nil
 }
 
 func main() {
