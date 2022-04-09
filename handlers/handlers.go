@@ -12,10 +12,20 @@ type Handler interface {
 	getStateFile(http.ResponseWriter)
 	updateStateFile(http.Request, http.ResponseWriter)
 	deleteStateFile(http.ResponseWriter)
+	lockStateFile(http.ResponseWriter)
+	unlockStateFile(http.ResponseWriter)
 }
 
 type Filesystem struct {
 	Filepath string
+}
+
+func (fh Filesystem) lockStateFile(res http.ResponseWriter) {
+
+}
+
+func (fh Filesystem) unlockStateFile(res http.ResponseWriter) {
+
 }
 
 func (fh Filesystem) GetStateFile(res http.ResponseWriter) {
@@ -30,7 +40,6 @@ func (fh Filesystem) GetStateFile(res http.ResponseWriter) {
 }
 
 func (fh Filesystem) UpdateStateFile(req *http.Request, res http.ResponseWriter) {
-
 	f, err := os.Create(fh.Filepath)
 	if err != nil {
 		log.Println("create file failed", err)

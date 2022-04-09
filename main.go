@@ -2,34 +2,37 @@ package main
 
 import (
 	"errors"
-	"fmt"
+	"flag"
 	"log"
+	"log/syslog"
 	"net/http"
 	"os"
 
 	"git.mrkeebs.eu/debris/handlers"
 )
 
-var filepath string
+var (
+	stateDirPtr = flag.String("dir", ".", "Terraform state directory path")
+	useSyslog   = flag.Bool("log", true, "Enable syslog")
+	addressPtr  = flag.String("addr", "0.0.0.0", "Address where mars should listen")
+	portPtr     = flag.String("port", "8080", "Port where mars should listen")
+)
 
-func serveHttp(address string) error {
-	router := http.NewServeMux()
-	router.HandleFunc("/", requestHandler)
-
-	if err := http.ListenAndServe(address, router); err != nil {
-		return err
-	}
-	return nil
+func logRequest(handler http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		log.Printf("[%s] %s \n", r.Method, r.URL)
+		handler.ServeHTTP(w, r)
+	})
 }
-
 func requestHandler(res http.ResponseWriter, req *http.Request) {
 	if req.URL.Path == "/" {
 		http.NotFound(res, req)
+		log.Println("Terraform state not found")
 		return
 	}
 
 	fs := handlers.Filesystem{
-		Filepath: filepath + req.URL.Path,
+		Filepath: *stateDirPtr + req.URL.Path,
 	}
 
 	switch req.Method {
@@ -43,33 +46,33 @@ func requestHandler(res http.ResponseWriter, req *http.Request) {
 		fs.DeleteStateFile(res)
 		return
 	default:
-		fmt.Printf("Method not supported\n")
-	}
-}
-
-// This init function check if the directory that stores states
-// exists. If not create it.
-func init() {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		log.Println("Error while get home dir", err)
-	}
-	filepath = home + "/.debris"
-	if _, err := os.Stat(filepath); errors.Is(err, os.ErrNotExist) {
-		err := os.Mkdir(filepath, 0755)
-		if err != nil {
-			log.Println("Error creating dir", err)
-		}
+		log.Println("HTTP Method not supperted")
 	}
 }
 
 func main() {
+	flag.Parse()
 
-	// how to handling errors
-	// how to handling logs
-	// how to handling init
-	if err := serveHttp("0.0.0.0:8080"); err != nil {
-		fmt.Fprintf(os.Stderr, "%s\n", err)
-		os.Exit(1)
+	if *useSyslog {
+		logwriter, err := syslog.New(syslog.LOG_NOTICE, "mars")
+		if err != nil {
+			log.Fatal(err)
+		}
+		log.SetOutput(logwriter)
+		log.SetFlags(log.Ldate | log.Ltime | log.Lshortfile)
+	}
+
+	err := os.Mkdir(*stateDirPtr, 0755)
+	if err != nil && !errors.Is(err, os.ErrExist) {
+		log.Println("Error creating dir", err)
+	}
+
+	router := http.NewServeMux()
+	router.HandleFunc("/", requestHandler)
+	router.HandleFunc("/lock", handler func(ResponseWriter, *Request))
+
+	if err := http.ListenAndServe(*addressPtr+":"+*portPtr,
+		logRequest(router)); err != nil {
+		log.Println(err)
 	}
 }

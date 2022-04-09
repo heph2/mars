@@ -15,3 +15,16 @@ want myself tighted to a forge.
 You can easily compile yourself from this git repository, or
 use the docker container provided. Or better, if you're a nix user
 you can use the module available on my NUR
+
+ ## Contributing
+
+Send patches and issue reports to [srht@mrkeebs](mailto:srht@mrkeebs.eu)
+
+## License
+
+`mars` is Copyright @ 2022 heph.
+
+`mars` is licensed under the terms of the GNU Affero General Public License, version3. For more information, see [LICENSE][] of the [GNU website][agpl-3]
+
+[LICENSE]: LICENSE
+[agpl-3]: https://www.gnu.org/licenses/agpl-3.0.standalone.html
