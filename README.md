@@ -8,6 +8,12 @@ Supporting lock, state encryption and multiple backend for storage.
 ## Usage
 For the full documentation, read the mars(1) man page.
 
+```
+Usage:
+	
+Options:	
+```
+
 ## Installing
 
 ### Compiling from source

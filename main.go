@@ -13,9 +13,11 @@ import (
 
 var (
 	stateDirPtr = flag.String("dir", ".", "Terraform state directory path")
-	useSyslog   = flag.Bool("log", true, "Enable syslog")
+	useSyslog   = flag.Bool("log", true, "Whether enable syslog")
 	addressPtr  = flag.String("addr", "0.0.0.0", "Address where mars should listen")
 	portPtr     = flag.String("port", "8080", "Port where mars should listen")
+	certFilePtr = flag.String("cert", "", "TLS Cert file path")
+	keyFilePtr  = flag.String("key", "", "TLS Key file path")
 )
 
 func logRequest(handler http.Handler) http.Handler {
@@ -31,8 +33,14 @@ func requestHandler(res http.ResponseWriter, req *http.Request) {
 		return
 	}
 
+	stateFile, err := os.OpenFile(*stateDirPtr+req.URL.Path,
+		os.O_RDWR, 0666)
+	if err != nil {
+		log.Println(err)
+	}
+
 	fs := handlers.Filesystem{
-		Filepath: *stateDirPtr + req.URL.Path,
+		StateFile: stateFile,
 	}
 
 	switch req.Method {
@@ -44,6 +52,12 @@ func requestHandler(res http.ResponseWriter, req *http.Request) {
 		return
 	case "DELETE":
 		fs.DeleteStateFile(res)
+		return
+	case "LOCK":
+		fs.LockStateFile(res)
+		return
+	case "UNLOCK":
+		fs.UnlockStateFile(res)
 		return
 	default:
 		log.Println("HTTP Method not supperted")
@@ -69,10 +83,18 @@ func main() {
 
 	router := http.NewServeMux()
 	router.HandleFunc("/", requestHandler)
-	router.HandleFunc("/lock", handler func(ResponseWriter, *Request))
 
-	if err := http.ListenAndServe(*addressPtr+":"+*portPtr,
-		logRequest(router)); err != nil {
-		log.Println(err)
+	log.Println(*certFilePtr, *keyFilePtr)
+
+	if *certFilePtr != "" && *keyFilePtr != "" {
+		if err := http.ListenAndServeTLS(*addressPtr+":"+*portPtr,
+			*certFilePtr, *keyFilePtr, logRequest(router)); err != nil {
+			log.Println(err)
+		}
+	} else {
+		if err := http.ListenAndServe(*addressPtr+":"+*portPtr,
+			logRequest(router)); err != nil {
+			log.Println(err)
+		}
 	}
 }

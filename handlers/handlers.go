@@ -17,48 +17,42 @@ type Handler interface {
 }
 
 type Filesystem struct {
-	Filepath string
+	StateFile *os.File
 }
 
-func (fh Filesystem) lockStateFile(res http.ResponseWriter) {
+func (fh Filesystem) LockStateFile(res http.ResponseWriter) {
+	if err := syscall.Flock(int(fh.StateFile.Fd()), syscall.LOCK_EX|syscall.LOCK_NB); err != nil {
+		res.WriteHeader(423)
+		log.Println("Get Exclusive Lock failed", err)
+	}
 
+	log.Println("Lock acquired on", fh.StateFile.Name())
 }
 
-func (fh Filesystem) unlockStateFile(res http.ResponseWriter) {
+func (fh Filesystem) UnlockStateFile(res http.ResponseWriter) {
+	if err := syscall.Flock(int(fh.StateFile.Fd()), syscall.LOCK_UN); err != nil {
+		log.Println("Error while unlocking file", err)
+	}
 
+	log.Println("Lock released on", fh.StateFile.Name())
 }
 
 func (fh Filesystem) GetStateFile(res http.ResponseWriter) {
-	file, err := os.Open(fh.Filepath)
-	if err != nil {
-		log.Println("Error while open file", err)
-	}
-	defer file.Close()
-	res.WriteHeader(200)
-
-	io.Copy(res, file)
+	io.Copy(res, fh.StateFile)
 }
 
 func (fh Filesystem) UpdateStateFile(req *http.Request, res http.ResponseWriter) {
-	f, err := os.Create(fh.Filepath)
-	if err != nil {
-		log.Println("create file failed", err)
-	}
-	defer f.Close()
-
-	if err := syscall.Flock(int(f.Fd()), syscall.LOCK_EX); err != nil {
-		log.Println("Add Exclusive Lock failed", err)
-	}
-
-	if _, err := io.Copy(f, req.Body); err != nil {
+	if _, err := io.Copy(fh.StateFile, req.Body); err != nil {
 		log.Println("Error streaming data", err)
 	}
 
+	log.Println(fh.StateFile.Name())
 	res.WriteHeader(200)
 }
 
 func (fh Filesystem) DeleteStateFile(res http.ResponseWriter) {
-	if os.RemoveAll(fh.Filepath) != nil {
+	log.Println("Removing", fh.StateFile.Name())
+	if os.RemoveAll(fh.StateFile.Name()) != nil {
 		log.Println("Error while deleting statefile")
 	}
 
