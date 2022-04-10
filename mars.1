@@ -1,0 +1,21 @@
+.TH MARS 1
+.SH NAME
+mars \- simple, modern, terraform http backend
+.SH SYNOPSIS
+.B mars
+[\fB\-n\fR \fIBITS\fR]
+[\fB\-\-bits\fR \fIBITS\fR]
+.IR file ...
+.SH DESCRIPTION
+.B mars
+provide a simple http backend for managing terraform remote states.
+It supports multiples backend for storing the states, like plain filesystem
+and sqlite.
+If --encryption is specified, the file is encrypted with a passphrase
+.SH OPTIONS
+.TP
+.BR \-n ", " \-\-bits =\fIBITS\fR
+Set the number of bits to modify.
+Default is one bit.
+.SH AUTHORS
+Marco Bauce srht@mrkeebs.eu
