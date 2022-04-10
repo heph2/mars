@@ -1,4 +1,4 @@
-![Logo of the project](assets/gopher-astronaut_dribbble.png)
+![Logo of the project](assets/gopher-astronaut_dribbble-200x200.png)
 # Mars
 > Mars is a simple http backend for terraform.
 
