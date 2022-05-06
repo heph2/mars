@@ -33,14 +33,8 @@ func requestHandler(res http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	stateFile, err := os.OpenFile(*stateDirPtr+req.URL.Path,
-		os.O_RDWR, 0666)
-	if err != nil {
-		log.Println(err)
-	}
-
 	fs := handlers.Filesystem{
-		StateFile: stateFile,
+		StateFile: *stateDirPtr + req.URL.Path,
 	}
 
 	switch req.Method {
@@ -54,7 +48,7 @@ func requestHandler(res http.ResponseWriter, req *http.Request) {
 		fs.DeleteStateFile(res)
 		return
 	case "LOCK":
-		fs.LockStateFile(res)
+		fs.LockStateFile(req, res)
 		return
 	case "UNLOCK":
 		fs.UnlockStateFile(res)
